@@ -1,8 +1,3 @@
-setwd("C:/Users/td296/OneDrive - University of Exeter/Royal society/Why are males shit at migrating/Malaise physiology")
-
-morphonew<-read.csv("morpho_R_new.csv", header=T,  stringsAsFactors = T)
-
-
 #packages
 library(tidyr)
 library(dplyr)
@@ -30,111 +25,6 @@ hist(morphonew$wing_aspect_ratio)
 morphonew1<-na.omit(morphonew)
 View(morphonew)
 
-#changing sex from character to factor for ANOVA
-morpho$sex<-as.factor(morpho$sex)
-#changing to numeric after factor to ensure no NA are coersed. This is for ANOVA
-morpho$sex<-as.numeric(morpho$sex)
-
-#did pared t,tests online with quite tool
-#females have sig. larger winds and lower wind load
-#no diff. in aspect ratio and dry weight
-
-####old Analysis####
-
-#making variables factors as needed by Tukeys HSD
-morpho$wing_area_mm2<-as.factor(morpho$wing_area_mm2)
-morpho$wing_load<-as.factor(morpho$wing_load)
-morpho$wing_aspect_ratio<-as.factor(morpho$wing_aspect_ratio)
-
-
-#plot
-plot(morpho$sex,morpho$wing_area_mm2)
-
-
-#ANOVA
-aov1<-aov(wing_area_mm2~sex, data = morpho)
-summary(aov1)
-
-aov2<-aov(wing_load~sex, data = morpho)
-summary(aov2)
-
-aov3<-aov(wing_aspect_ratio~sex, data = morpho)
-summary(aov3)
-
-
-#model with lm
-lm1<-lm(wing_area_mm2~sex*date, data = morpho)
-summary(lm1)
-drop1(lm1, test="F")
-# date not significant so can drop 
-
-lm2<-lm(wing_area_mm2~sex, data = morpho)
-summary(lm2)
-
-lm3<-lm(wing_load~sex*date, data = morpho)
-summary(lm3)
-drop1(lm3, test="F")
-#date significant so keep in model
-
-
-lm4<-lm(wing_aspect_ratio~sex*date, data = morpho)
-summary(lm4)
-drop1(lm4, test="F")
-lm5<-lm(wing_aspect_ratio~sex, data = morpho)
-summary(lm5)
-
-#### using morpho_R_new data set to determine correlations between wing variables and body size####
-
-
-
-hist(morphonew$dry_weight_mg)
-
-#model dry weight and body size (wing length from rm to r4+5 tip)
-
-lm10<-lm(dry_weight_mg~rm.r4.5_cm, data = morphonew)
-summary(lm10)
-#poor correlation. Adjusted R-squared:  0.5254
-
-# does wing length as proxy for body size differ between sexes with dry weight as explanatory variable
-
-lm11<-lm(rm.r4.5_cm~sex*dry_weight_mg, data = morphonew, na.action=na.omit)
-summary(lm11)
-#all sig
-
-#dry weight and sex
-lm12<-lm(dry_weight_mg~sex, data = morphonew)
-summary(lm12)
-#no significance
- 
-#plot 
-plot(morphonew$dry_weight_mg~morphonew$rm.r4.5_cm)
-#fairly good correlation
-
-#plot 
-plot(morphonew1$dry_weight_mg~morphonew1$sex)
-# shows male and female dry weights faily similar
-
-# ggplot to add sex into the model plot
-
-ggplot(data = morphonew1, aes(x = rm.r4.5_cm, y = dry_weight_mg, col = sex))+
-  geom_point()
-
-#model with sex seperated
-
-lm12<-lm(dry_weight_mg~rm.r4.5_cm, data = morphonew1[morphonew1$sex=="male",])
-summary(lm12)
-#good r squared value  0.8797
-
-lm13<-lm(dry_weight_mg~rm.r4.5_cm, data = morphonew1[morphonew1$sex=="female",])
-summary(lm13)
-#good r squared value  0.4453
-
-#does male and female wing lengths differ?
-lm13<-lm(wing_length_cm~sex, data = morphonew)
-summary(lm13)
-#no
-
-
 #### analysis with new data to determine relationship between sex and wing variables####
 
 # model wing area, wing load and aspect ration with date caught, dry weight and body proxy as explanatory varibles
@@ -154,7 +44,6 @@ glm3<-glm(wing_area_mm2~sex+date+dry_weight_mg+rm.r4.5_cm+sex*date+rm.r4.5_cm, d
 summary(glm3)
 drop1(glm3, test="F")
 #drop sex:date:rm.r4.5_cm
-
 
 glm4<-glm(wing_area_mm2~sex+date+dry_weight_mg+rm.r4.5_cm, data=morphonew1)
 summary(glm4)
@@ -183,10 +72,9 @@ glm4<-glm(wing_load~sex+date+dry_weight_mg+rm.r4.5_cm, data=morphonew1)
 summary(glm4)
 drop1(glm4, test="F")
 
-
-glm4<-glm(wing_load~sex+dry_weight_mg+rm.r4.5_cm, data=morphonew1)
-summary(glm4)
-drop1(glm4, test="F")
+glm5<-glm(wing_load~sex+dry_weight_mg+rm.r4.5_cm, data=morphonew1)
+summary(glm5)
+drop1(glm5, test="F")
 #all significant interactions that effect wing load. Dry weight and rm.r4.5_cm are proxies of body size. 
 
 #does dry weight differ between sexes
@@ -200,9 +88,7 @@ aov(glm1)
 ggplot(morphonew1, aes(x=sex, y = dry_weight_mg, group = interaction(sex,date)))+
   geom_boxplot()
 
-
 #wing aspect ratio
-
 
 glm1<-glm(wing_aspect_ratio~sex*form*wing_length_cm, data=morphonew)
 summary(glm1)
@@ -228,12 +114,14 @@ glm6<-glm(wing_aspect_ratio~sex+wing_length_cm, data=morphonew)
 summary(glm6)
 drop1(glm6, test="F")
 
+#none of the body sixe proxies were significant so removed
+
 ####stats for paper####
 
 # wing aspect ratio between male and female migrants 
 #all other explanatory variables were non significant so removed
 
-#model
+#model with only migrants
 glm7<-glm(wing_aspect_ratio~sex, data=morphonew[morphonew$form=="migrant",])
 summary(glm7)
 drop1(glm7, test="F")
@@ -245,7 +133,7 @@ summary(glm8)
 #anova of model and null model
 
 anova(glm7,glm8, test = "F")
-#this is what is reported
+
 
 # wing length between males and female migrants
 #all other explanatory variables were non significant so removed
@@ -329,24 +217,13 @@ glm2<-glm(wing_width_cm~form, data=summerdf)
 summary(glm2)
 #no difference
 
-glm3<-glm(wing_aspect_ratio~form, data=summerdf)
-summary(glm3)
-#sig difference in aspect ratio.......
-
-
-
-##### analysis of migrants vs non-migrants####
+#analysis of migrants vs non-migrants
 
 # recode summer lab data into summer
 
 morphonew2<-morphonew
 
 morphonew2$form<-recode_factor(morphonew$form, `Summer lab` = "summer")
-
-# removing aumtumn lab and winter from analysis
-
-morphonew2<-morphonew2 %>% 
-  filter(form %in% c('migrant', 'summer'))
 
 #wing length
 
@@ -416,50 +293,6 @@ summary(glm9)
 anova(glm8, glm9, test= "F")
 
 
-#### estimate body size using dry weight and another wing variable####
-
-#check distribution of data
-
-hist(morphonew$dry_weight_mg)
-#normal distribution
-
-#model dry weight and wing area with sex as explanatory variable
-
-lm4<-lm(dry_weight_mg~wing_area_mm2*sex, data = morphonew)
-summary(lm4)
-
-# all interactions highly significant
-
-#plot 
-plot(morphonew$dry_weight_mg~morphonew$wing_area_mm2)
-#shows a good correlation
-
-# ggplot to add sex into the model plot
-
-ggplot(data = morphonew, aes(x = wing_area_mm2, y = dry_weight_mg, col = sex))+
-  geom_point()
-
-# female distribution is spread so trying a differnet wing morphometric to try for a tighter correlation
-
-#change wing th length to numeric
-morpho$wing_length_cm<-as.numeric(morpho$wing_length_cm)
-
-#run plot with wing length and dry weight
-ggplot(data = morpho, aes(x = wing_length_cm, y = dry_weight_mg, col = sex))+
-  geom_point()
-
-#change wing width to numeric
-morpho$wing_width_cm<-as.numeric(morpho$wing_width_cm)
-
-#run plot with wing width and dry weight
-ggplot(data = morpho, aes(x = wing_width_cm, y = dry_weight_mg, col = sex))+
-  geom_point()
-#more spread than wing area of wing length
-
-#run models with only females and only males to check correlations
-#wing area
-lm5<-lm(dry_weight_mg~wing_area_mm2, data = morphonew[morphonew$sex=="male",])
-summary(lm5)
 #good r squared value 0.89
 
 lm6<-lm(dry_weight_mg~wing_area_mm2, data = morphonew[morphonew$sex=="female",])
@@ -497,116 +330,7 @@ ggplot(morphonew, aes(x=dry_weight_mg, y = IT_cm))+
 
 
 
-morphonew1<-na.omit(morphonew)
 
-##add R squared into figure with this 
-grob <- grobTree(textGrob("Adjusted R-squared:  0.6177 ", x=0.1,  y=0.95, hjust=0,
-                           gp=gpar(col="red", fontsize=13)))
-
-#plot
-ggplot(morphonew1, aes(x=dry_weight_mg, y = wing_length_cm))+
-  geom_point(aes(colour=sex))+ geom_smooth(method=lm, se=FALSE)+ annotation_custom(grob)
-
-#plot for males
-##add R squared into figure with this 
-grob1 <- grobTree(textGrob("Adjusted R-squared:  0.8993 ", x=0.1,  y=0.95, hjust=0,
-                          gp=gpar(col="red", fontsize=13)))
-
-#plot
-ggplot(morphonew1[morphonew1$sex=="male",], aes(x=dry_weight_mg, y = wing_length_cm))+
-  geom_point(aes(colour=sex))+ geom_smooth(method=lm, se=FALSE)+ annotation_custom(grob1)
-
-#plot for females
-##add R squared into figure with this 
-grob2 <- grobTree(textGrob("Adjusted R-squared:  0.534 ", x=0.1,  y=0.95, hjust=0,
-                           gp=gpar(col="red", fontsize=13)))
-
-#plot
-ggplot(morphonew1[morphonew1$sex=="female",], aes(x=dry_weight_mg, y = wing_length_cm))+
-  geom_point(aes(colour=sex))+ geom_smooth(method=lm, se=FALSE)+ annotation_custom(grob2)
-
-
-#try wing aspect ratio for females only as males has a good predictor
-
-lm10<-lm(dry_weight_mg~wing_aspect_ratio, data = morpho[morpho$sex=="female",])
-summary(lm10)
-
-plot(dry_weight_mg~wing_aspect_ratio, data = morpho[morpho$sex=="female",])
-
-#SUMMARY - dry_weight and wing length are the best predictors. 
-#if you disentangle the sexes males have good R squared, females bad
-#try using a model with both sexes
-#will have lower R squared but might be ok
-
-
-#make a predictor model uisng dry weigh and wig length
-
-newdat<-NULL #new dataframe to contain predictions
-fake.wing_length_cm <- seq(min(morpho$wing_length_cm[morpho$sex == "male"]), max(morpho$wing_length_cm[morpho$sex=="male"]), length.out=1000)
-fake.sex <- rep("male", 1000)
-newdat$sex <- fake.sex
-newdat<-as.data.frame(newdat)
-newdat$wing_length_cm <- fake.wing_length_cm
-
-newdat_f<-NULL
-fake.wing_length_cm_f <- seq(min(morpho$wing_length_cm[morpho$sex == "female"]), max(morpho$wing_length_cm[morpho$sex=="female"]), length.out=1000)
-fake.sex_f <- rep("female", 1000)
-newdat_f$sex<-fake.sex_f
-newdat_f<-as.data.frame(newdat_f)
-newdat_f$wing_length_cm<-fake.wing_length_cm_f
-
-newdat<-rbind(newdat, newdat_f)
-
-lm10<-lm(dry_weight_mg~wing_length_cm*sex, data=morpho)
-summary(lm10)
-newdat$sex<- as.factor(newdat$sex)
-str(morpho)
-newdat$pred<-predict(lm10, newdata = newdat)
-
-#ggplot of model and prediction lines
-ggplot(data = morpho, aes(x = wing_length_cm, y = dry_weight_mg, col = sex))+
-  geom_point()+
-  geom_line(data=newdat, aes(x=wing_length_cm, y=pred, col=sex))
-
-summary(lm10)
-
--8.131 + 51.359*0.18 + (-2.884) + 0.18*14.443
-
-####does dry weight change with sex, include wing length as a proxy for body size####
-
-#look at dry weight distribution
-hist(morphonew$dry_weight_mg)
-#fairly normal
-
-glm1<-glm(dry_weight_mg~sex*wing_length_cm*date, data=morphonew)
-summary(glm1)
-drop1(glm1, test="F")
-#drop three way interaction
-
-glm2<-glm(dry_weight_mg~sex*wing_length_cm+sex*date+wing_length_cm*date, data=morphonew)
-summary(glm2)
-drop1(glm2, test="F")
-#drop sex*wing length
-
-glm3<-glm(dry_weight_mg~sex+wing_length_cm+sex*date+wing_length_cm*date, data=morphonew)
-summary(glm3)
-drop1(glm3, test="F")
-#drop wing length and date
-
-glm4<-glm(dry_weight_mg~sex+wing_length_cm+sex*date, data=morphonew)
-summary(glm4)
-drop1(glm4, test="F")
-#drop sex*date
-
-glm5<-glm(dry_weight_mg~sex+wing_length_cm+date, data=morphonew)
-summary(glm5)
-drop1(glm5, test="F")
-#drop date
-
-glm6<-glm(dry_weight_mg~sex+wing_length_cm, data=morphonew)
-summary(glm6)
-drop1(glm6, test="F")
-#wing length as proxy for body size has a signficant interaction with
 
 
 #We don't need wing length as a proxy for body size as dry weight does this
