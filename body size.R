@@ -1,7 +1,3 @@
-setwd("C:/Users/td296/OneDrive - University of Exeter/Royal society/Why are males shit at migrating/body size")
-
-bdf <- read.csv("body_size_r.csv", header = T, stringsAsFactors = T)
-
 library(ggplot2)
 library(grid )
 
@@ -47,7 +43,7 @@ ggplot(bdf, aes(x=sex, y = dry_weight_mg, ))+
   geom_boxplot()
 
 
-####do dry weight or IT_cm correlate with body size proxy wing length####
+####does dry weight or IT_cm correlate with body size proxy wing length####
 
 #does IT size correlate with rm.r4.5_cm wing size
 lm2<-lm(rm.r4.5_cm~IT_cm, data = bdf, na.action=na.omit)
