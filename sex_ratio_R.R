@@ -1,10 +1,3 @@
-setwd("C:/Users/td296/OneDrive - University of Exeter/Royal society/Why are males shit at migrating/Malaise physiology")
-#just pyrenees data 
-ratio<-read.csv("sex_ratio_R.csv", header=T,  stringsAsFactors = T)
-#all of Europe data
-ratioE<-read.csv("sex_ratio_europe_R.csv", header=T,  stringsAsFactors = T)
-
-
 #packages
 library(tidyr)
 library(dplyr)
@@ -77,17 +70,10 @@ plot3<-ggplot(ratiomass, aes(x=Sex, y=Individuals, col=Sex)) +
   theme(legend.position = "none")+
   theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))
 
-
-plot3
-
-
 #plot model with only female percentages
 #create new data frame with only females
 
-
 females<-filter(ratioE, sex =="females")
-
-
 
 #plot only females across europe 
 plot4<-ggplot(females, aes(x = site, y=percentage, color = sex)) +
@@ -106,7 +92,7 @@ plot4
 ggsave("Europe sex ratio percentages females only.tiff",path = NULL, width = 6, height = 5, device='tiff', dpi=1000)
 
 
-#combine sex and physiological plots using patchwork
+#combine sex and physiological exp plots using patchwork
 
 
 sexplot<-plot3/plot4+plot_layout(ncol = 3, widths = c(1, 1))
@@ -117,121 +103,3 @@ all+ plot_annotation(tag_levels = 'a') & theme(plot.tag = element_text(size = 20
 ggsave("sex & physiology.tiff",path = NULL, width = 16, height = 11, device='tiff', dpi=1000)
 
 
-#### create a model for sex ratio and temperature####
-
-#create a new column with proportion for female and male 
-
-new<- ratio %>%
-  group_by(Date) %>% 
-  summarise(Proportion = Individuals/sum(Individuals))%>%
-  ungroup()
-
-#adding average daily temp back into data set from original ratio dataset
-
-all<-bind_cols(new, ratio['average_daily_temp'])
-
-#include sex too 
-all1<-bind_cols(all, ratio['Sex'])
-
-#seperate into female and male folders
-
-females<-filter(all1, Sex =="Female")
-
-males<-filter(all1, Sex =="Male")
-
-
-# glm looking at differnece in sex and date
-#use proportion data only
-glm1<-glm(Proportion~average_daily_temp*Sex, data = all1, family=quasibinomial)
-summary(glm1)
-drop1(glm1, test = "F")
-
-glm2<-glm(Proportion~average_daily_temp+Sex, data = all1, family=quasibinomial)
-summary(glm2)
-drop1(glm2, test = "F")
-
-#check model 
-plot(glm2)
-
-#check significance in trends 
-MannKendall(all1$Proportion)
-
-#check trends with anova of glm models
-
-anova(glm1,glm2, test = "Chisq")
-
-#model with raw data - individuals not protportion 
-
-glm1<-glm(Individuals~average_daily_temp*Sex, data = ratio)
-summary(glm1)
-drop1(glm1, test = "F")
-
-glm2<-glm(Individuals~average_daily_temp+Sex, data = ratio)
-summary(glm2)
-drop1(glm2, test = "F")
-
-anova(glm1,glm2, test = "Chisq")
-
-####plot individuals#### 
-# plot by individuals
-plotall <- ggplot(ratio, aes(average_daily_temp, Individuals, fill=Sex)) +
-  geom_point(aes(colour = Sex)) +
-  stat_smooth(method = glm)+
-  labs(y = "Individuals", x = "Average daily temperature")+ 
-  theme_classic()
-plotall
-
-
-
-#plot using predict function
-
-predictmodel<-predict(glm2, newdata = ratio)
-
-plotall <- ggplot(predictmodel, aes(average_daily_temp, Individuals, fill=Sex)) +
-  geom_point(aes(colour = Sex)) +
-  stat_smooth(method = glm)+
-  labs(y = "Individuals", x = "Average daily temperature °C")+ 
-  theme_classic()
-plotall
-
-ggsave("sex & temp.tiff",path = NULL, width = 12, height = 8, device='tiff', dpi=1000)
-
-
-
-
-
-####plot proportion males####
-
-plotmale <- ggplot(males, aes(average_daily_temp, Proportion, fill=Sex)) +
-  geom_point() +
-  stat_smooth(method = glm)+
-  labs(y = "Proportion males", x = "Average daily temperature")+ 
-  theme_classic()
-
-plotmale
-
-#plot proportion females
-
-plotfemale <- ggplot(females, aes(average_daily_temp, Proportion)) +
-  geom_point() +
-  stat_smooth(method = glm)+
-  labs(y = "Proportion females", x = "Average daily temperature")+ 
-  theme_classic()
-plotfemale
-
-#plot females and males in same figure
-
-plotall <- ggplot(all1, aes(average_daily_temp, Proportion, fill=Sex)) +
-  geom_point(aes(colour = Sex)) +
-  stat_smooth(method = glm)+
-  labs(y = "Proportion", x = "Average daily temperature")+ 
-  theme_classic()
-plotall
-
-# plot by individuals
-plotall <- ggplot(ratio, aes(average_daily_temp, Individuals, fill=Sex)) +
-  geom_point(aes(colour = Sex)) +
-  stat_smooth(method = glm)+
-  labs(y = "Individuals", x = "Average daily temperature")+ 
-  theme_classic()
-plotall
