@@ -1,0 +1,301 @@
+####                Using longitudinal muscle_p loss to predict wild E. bal age     ####
+
+# Packages:
+library(ggplot2)
+library(glmmTMB)
+library(AICcmodavg)
+library(bbmle)
+library(DHARMa)
+library(lme4)
+library(dplyr)
+library(VGAM)
+library(MuMIn)
+library(ggeffects)
+library(ggnewscale)
+library(ggsignif)
+
+## overdispersion function ----
+
+od.point <- function(modelobject){
+  x <- sum(resid(modelobject,type="pearson")^2)
+  rdf <- summary(modelobject)$AICtab[5]
+  return(x/rdf)
+}
+
+
+# Data:
+setwd("C:/Users/op288/OneDrive - University of Exeter/PhD/Lab work")
+thorax_data <- read.csv("thorax widths.csv")
+
+# clean:
+
+# variable names for ease:
+colnames(thorax_data)[11] <- "muscle_p"
+colnames(thorax_data)[10] <- "muscle_h"
+colnames(thorax_data)[3] <- "Age"
+
+# remove na's from response column:
+thorax_data <- thorax_data[!is.na(thorax_data$muscle_p),]
+
+
+# plotting:
+plot(thorax_data$Age, thorax_data$muscle_p)
+# looks like there is some pattern. Are they linked and are they affected by sex and location?
+
+# modelling:
+tmod2.1 <- glm(Age ~ muscle_p * Sex + muscle_p * location + muscle_p * Generation +
+                     Sex * location + Sex * Generation +
+                     location * Generation, data = thorax_data)
+summary(tmod2.1)
+
+drop1(tmod2.1, test = "F")
+
+tmod2.2 <- glm(Age ~ muscle_p * Sex + location + muscle_p * Generation + Sex * Generation +
+                 Sex * location + location * Generation, data = thorax_data)
+
+summary(tmod2.2)
+
+drop1(tmod2.2, test = "F")
+
+tmod2.3 <- glm(Age ~ muscle_p * Sex + location + muscle_p * Generation +
+                 Sex * location + location * Generation, data = thorax_data)
+summary(tmod2.3)
+
+drop1(tmod2.3, test = "F")
+
+tmod2.4 <- glm(Age ~ muscle_p * Sex + location + muscle_p * Generation +
+                 Sex * location, data = thorax_data)
+summary(tmod2.4)
+
+drop1(tmod2.4, test = "F")
+
+tmod2.5 <- glm(Age ~ muscle_p * Sex + location + muscle_p * Generation, data = thorax_data)
+summary(tmod2.5)
+
+drop1(tmod2.5, test = "F")
+# location not significant so remove
+
+tmod2.6 <- glm(Age ~ muscle_p * Sex + muscle_p * Generation, data = thorax_data)
+summary(tmod2.6)
+
+drop1(tmod2.6, test = "F")
+
+tmod2.7 <- glm(Age ~ Sex + muscle_p * Generation, data = thorax_data)
+summary(tmod2.7)
+
+drop1(tmod2.7, test = "F")
+
+# seems like there is no difference in ageing between locations.
+
+# We will put generation in as a random effect to account for any possible effect of different generations in the wild data.
+
+tmod2.8 <- glmmTMB(Age ~ muscle_p * Sex + (1|Generation), data = thorax_data, family = gaussian(link = "identity"))
+summary(tmod2.8)
+
+tmod2.8.g <- glmmTMB(Age ~ muscle_p * Sex + (1|Generation), data = thorax_data, family = Gamma(link = "log"))
+summary(tmod2.8.g)
+
+Model.sim <- simulateResiduals (fittedModel = tmod2.8, n = 1000)
+plot (Model.sim) # bad
+testResiduals(Model.sim) # ok
+
+# will try poisson since age is a count of days since birth:
+tmod2.9 <- glmmTMB(Age ~ muscle_p * Sex + (1|Generation), data = thorax_data, family = poisson(link = "log"))
+od.point(tmod2.9) # overdispersed
+Model.sim <- simulateResiduals (fittedModel = tmod2.9, n = 1000)
+plot (Model.sim) # bad
+testResiduals(Model.sim) # bad
+summary(tmod2.9)
+
+# quasi-poisson:
+tmod2.9qp <- glmmTMB(Age ~ muscle_p + Sex + (1|Generation), data = thorax_data, family = nbinom1())
+Model.sim <- simulateResiduals (fittedModel = tmod2.9qp, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+summary(tmod2.9qp)
+drop1(tmod2.9qp, test="Chisq")
+testDispersion(Model.sim)
+r.squaredGLMM(tmod2.9qp)
+
+
+tmod2.9qp1 <- glmmTMB(Age ~ 1, data = thorax_data, family = nbinom1())
+
+anova(tmod2.9qp1, tmod2.9qp)
+
+# basic model:
+install.packages("mgcv")
+library("mgcv")
+
+tmbasic <- gam(Age ~ s(muscle_p, k = -1) + Sex, data = thorax_data, family = quasipoisson(link = "log"))
+summary(tmbasic)
+?gam
+# predict with type ="response"
+# predict with type = "link" and se.fit=TRUE
+# back transform pred.fit values using below function, should match pred.fit for type="response"
+# plot
+tmod2.9qp$modelInfo$family$linkinv()
+
+# negative binomial:
+tmod2.9nb <- glmmTMB(Age ~ muscle_p + Sex + (1|Generation), data = thorax_data, family = nbinom2())
+Model.sim <- simulateResiduals (fittedModel = tmod2.9nb, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+summary(tmod2.9nb)
+
+r.squaredGLMM(tmod2.9nb)
+
+
+
+# both of these models provide negative effects for muscle and sex with age.
+
+# Model selection between qp and nb?
+AICctab(tmod2.9qp, tmod2.9nb)
+# similar with AICc
+BIC(tmod2.9qp, tmod2.9nb)
+# same
+lr_test <- anova(tmod2.9qp, tmod2.9nb)
+print(lr_test)
+# looks like the quasi r squared are better in the quasi poisson model. Also the dispersion test
+# gives a better distribution than the negative binomial.
+
+
+# predict age for wild pyrenees using tmod2.9qp:
+# where sex and muscle_p are sig:
+
+setwd("C:/Users/op288/OneDrive - University of Exeter/PhD/Pyrenees/")
+newthorax_data <- read.csv("E. balteatus samples - Pyrenees 23.csv")
+
+# variable nameSex# variable names for ease:
+colnames(newthorax_data)[51] <- "muscle_p"
+colnames(newthorax_data)[50] <- "muscle_h"
+
+newthorax_data <- newthorax_data[!is.na(newthorax_data$muscle_p),]
+newthorax_data1 <- newthorax_data[, c('muscle_p', 'Sex', 'Gen', 'Thorax.height..mm.')]
+newthorax_data1['Generation'] <- newthorax_data1[3]
+newthorax_data1$Generation <- as.factor(newthorax_data1$Generation)
+
+# make the predictions ignore the random effects:
+re.form= NA
+
+# age predictions:
+newthorax_data1$Age.predict <- predict(tmod2.9qp, newthorax_data1, type = "response", re.form= NA)
+pred.data <- as.data.frame(predict(tmod2.9qp, newthorax_data1, type = "link", se.fit = TRUE, re.form= NA))
+
+pred.data$upper <- tmod2.9qp$modelInfo$family$linkinv(pred.data$fit + pred.data$se.fit)
+pred.data$lower <- tmod2.9qp$modelInfo$family$linkinv(pred.data$fit - pred.data$se.fit)
+pred.data$fit <- tmod2.9qp$modelInfo$family$linkinv(pred.data$fit)
+
+data.predict <- cbind(pred.data, newthorax_data1)
+
+# Figure 2 e:
+muscle_py <- (muscle_p.predict.plot <- ggplot (data.predict, aes(y = fit, x = muscle_p, colour = Sex)) +
+              geom_ribbon(aes(ymin =lower, ymax = upper, colour = Sex, fill = Sex), linetype = 0, alpha = 0.25) +
+                coord_flip() +
+              geom_line(aes(linetype = Sex), lty = "solid", linewidth = 1)  + 
+              scale_color_manual(values = c("#f57600", "#054fb9")) +
+              scale_fill_manual(values = c("#BFBFBF", "#BFBFBF")) +
+              theme(axis.line = element_line(colour = "black"),
+                    panel.grid.major = element_blank(),
+                    panel.grid.minor = element_blank(),
+                    panel.border = element_blank(),
+                    panel.background = element_blank(),
+                    text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20)) +
+              ylab ("Age (days) ") +   
+              xlab ("      IFM %") +
+              scale_y_continuous(limits = c(20, 71), breaks = seq(10, 80, by = 10)) +
+              theme(legend.position="none"))
+
+# Figure supp:
+muscle_supp <- (muscle_p.predict.plot <- ggplot (data.predict, aes(y = fit, x = muscle_p, colour = Sex)) +
+                geom_ribbon(aes(ymin =lower, ymax = upper, colour = Sex, fill = Sex), linetype = 0, alpha = 0.25) +
+                coord_flip() +
+                geom_line(aes(linetype = Sex), lty = "solid", linewidth = 1)  + 
+                scale_color_manual(values = c("#f57600", "#054fb9")) +
+                scale_fill_manual(values = c("#BFBFBF", "#BFBFBF")) +
+                theme(axis.line = element_line(colour = "black"),
+                      panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank(),
+                      panel.border = element_blank(),
+                      panel.background = element_blank(),
+                      text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20)) +
+                ylab ("Age (days) ") +   
+                xlab ("      IFM %") +
+                scale_y_continuous(limits = c(0, 80), breaks = seq(0, 100, by = 10)) +
+                theme(legend.position="none")) + geom_point(mapping = aes(muscle_p, Age, shape = Sex), data = thorax_data, size = 2, alpha = 0.6) + 
+  scale_shape_manual(name = NULL, values = c(1, 16), labels = c("Female", "Male"))
+
+# figure legend:
+muscle_legend <- (muscle_p.predict.plot <- ggplot (data.predict, aes(y = fit, x = muscle_p, colour = Sex)) +
+                geom_ribbon(aes(ymin =lower, ymax = upper, colour = Sex, fill = Sex), linetype = 0, alpha = 0) +
+                geom_line(aes(linetype = Sex), lty = "solid", linewidth = 1)  + 
+                scale_color_manual(values = c("#f57600", "#054fb9")) +
+                  stat_smooth(method = "loess", se = FALSE) + # Add se = FALSE
+                theme(axis.line = element_line(colour = "black"),
+                      panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank(),
+                      panel.border = element_blank(),
+                      panel.background = element_blank()) +
+                ylab ("Age (days)") +   
+                xlab ("IFM %") +
+                theme(legend.position="bottom"))
+
+muscle_legend <- muscle_legend +
+  theme(
+    plot.background = element_rect(fill = "transparent", colour = "transparent"),
+    panel.background = element_rect(fill = "transparent", colour = "gray"),
+    panel.border = element_rect(fill = "transparent", colour = "black"),
+    axis.text = element_text(color = "black"),
+    panel.grid.major = element_line(colour = "grey", linetype = "dashed"),
+    strip.background = element_rect(fill = "transparent", colour = "transparent"),
+    panel.spacing.x = unit(4, "mm"),
+    legend.background = element_blank(),
+    legend.box.background = element_blank(),
+    legend.key = element_blank()
+  )
+
+# figures: ####
+
+
+# Testing age predictions between sex:
+
+qqnorm(data.predict$fit)
+qqline(data.predict$fit)
+hist(data.predict$fit)
+shapiro.test(data.predict$fit)
+# normal distribution
+
+data.predict1 <- data.predict
+data.predict1$Sex <- as.factor(data.predict1$Sex)
+var.test(fit ~ Sex, data = data.predict1, alternative = "two.sided") # equal
+sexage.diff1 <- t.test(data.predict1$fit ~ data.predict1$Sex, data = data.predict1, var.equal = FALSE)
+sexage.diff1
+
+# mean ages per sex:
+mean(data.predict1$fit)
+malepredicted <- data.predict1 %>% subset(Sex == "M")
+femalepredicted <- data.predict1 %>% subset(Sex == "F")
+mean(femalepredicted$fit)
+mean(malepredicted$fit)
+
+# significantly different ages between sexes.
+
+# Figure 2 f
+sexbox <- ggplot(data.predict1, aes(x= Sex, y = fit, colour = Sex)) +geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))) +
+  geom_jitter(width = 0.3, size = 2.5, alpha = 0.5) +
+  scale_colour_manual(values = c("#f57600", "#054fb9"))
+  
+
+# no axis labels:
+
+sggsignifsexbox <- sexbox +  xlab(" ") + ylab("Age (days)") + 
+  scale_y_continuous(limits = c(20, 68), breaks = seq(10, 70, by = 10))+
+  theme(legend.position = "none") +   scale_x_discrete(labels=c('Female', 'Male')) +
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE, textsize = 6, col = 1) +
+  theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))
+
