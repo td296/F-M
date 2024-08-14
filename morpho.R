@@ -25,7 +25,7 @@ hist(morphonew$wing_aspect_ratio)
 morphonew1<-na.omit(morphonew)
 View(morphonew)
 
-#### analysis with new data to determine relationship between sex and wing variables####
+#### analysis to determine relationship between sex and wing variables####
 
 # model wing area, wing load and aspect ration with date caught, dry weight and body proxy as explanatory varibles
 
@@ -78,10 +78,10 @@ drop1(glm5, test="F")
 #all significant interactions that effect wing load. Dry weight and rm.r4.5_cm are proxies of body size. 
 
 #does dry weight differ between sexes
-glm1<-glm(dry_weight_mg~sex*date, data= morphonew)
-summary(glm1)
-drop1(glm1, test="F")
-aov(glm1)
+glm6<-glm(dry_weight_mg~sex*date, data= morphonew)
+summary(glm6)
+drop1(glm6, test="F")
+aov(glm6)
 #no non-sig interaction to drop
 
 #plot with date and sex interaction
