@@ -760,11 +760,6 @@ plot_wing_IT
 
 
 
-####wing aspect ratio and lift coefficient####
-
-#read in data from https://doi.org/10.1063/1.5129191 
-
-CL<-read.csv("AR_CL_data_r.csv", header=T,  stringsAsFactors = T)
 
 ####sex difference comparison summer and migrants#####
 #use morphonew2 dataset
