@@ -207,7 +207,6 @@ starvation$date_collected<-as.factor(starvation$date_collected)
 starvation$sex<-as.factor(starvation$sex)
 starvation$condition<-as.factor(starvation$condition)
 
-
 #models
 glm1<-glm(hr_2_starvation~sex, data = starvation)
 summary(glm1)
@@ -220,21 +219,7 @@ plot(glm1)
 
 # no significant difference
 
-#plot
-ggplot(starvation, aes(x=sex, y = hr_2_starvation))+
-  geom_boxplot()
-
-
-
-
-
-
-
-
-
-
-
-####starvation plot####
+#starvation plot
 
 #starvation$sex<-recode_factor(starvation$sex, "f" = "Female")
 #starvation$sex<-recode_factor(starvation$sex, "m" = "Male")
@@ -253,9 +238,8 @@ starv<-ggplot(starvation, aes(x=sex, y = hr_2_starvation, col=sex))+
   theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))
 starv
 
-             
+#panelling pots for publication
 
-             
 # merge hyperphagia and starvation. on top of each other. 7 spaces for labelling
 plot1<-ggarrange(hyp, starv, labels=c("d", "e"), nrow=2,font.label = list(size = 20, face = "plain"), common.legend = TRUE, legend="none",vjust=1)
 plot1
@@ -275,7 +259,7 @@ plot2
 
 ggsave("physiological exps.tiff",path = NULL, width = 7, height = 8, device='tiff', dpi=1000)
 
-#combine plot2 with sex ratio pots
+
 
 
 
