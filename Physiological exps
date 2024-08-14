@@ -1,11 +1,3 @@
-setwd("C:/Users/td296/OneDrive - University of Exeter/Royal society/Why are males shit at migrating/cold tollerance")
-
-master <- read.csv("mater_r.csv", header = T, stringsAsFactors = T)
-
-#outlier removed data frame
-master <- read.csv("mater_r_outlier_removed.csv", header = T, stringsAsFactors = T)
-
-
 library(tidyverse)
 library(ggplot2)
 library("ggsignif") 
@@ -16,16 +8,15 @@ library(ggpubr)
 #plot normality
 hist(master$temp)
 
+#glm with drop1 function to remove non-significant itneractions
+
 glm1<-glm(temp~sex*condition*date_frozen*basal_r4.5_cm, data = master)
 summary(glm1)
 drop1(glm1, test="F")
-# looks like there isn't any fourway interactions from input above
 
-# carry out three way interaction glm's
 glm2<-glm(temp~sex*condition*date_frozen+basal_r4.5_cm*sex*date_frozen + sex*condition*basal_r4.5_cm + date_frozen*basal_r4.5_cm*condition, data = master)
 summary(glm2)
 drop1(glm2, test = "F")
-#basal cell measurement not significant
 
 glm3<-glm(temp~sex*condition*date_frozen+basal_r4.5_cm*sex*date_frozen + sex*condition*basal_r4.5_cm, data = master)
 summary(glm3)
@@ -76,8 +67,7 @@ glm14<-glm(temp~sex, data = master)
 summary(glm14)
 drop1(glm14, test = "F")
 
-#plot model diagnostics to assess assumptions of linear model. Normal Q-Q, in straight line
-#all good. if not go bother Jaimie. Other plots are important but not a big deal
+#plot model diagnostics to assess assumptions of model
 plot(glm14)
 
 #null model
@@ -104,36 +94,97 @@ cold<-ggplot(master, aes(x=sex, y = temp, col = sex))+
   scale_x_discrete(labels=c('Female', 'Male'))+
   theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))
 
-cold
-
 #save as tiff file in high resolution
 tiff('cold tolerance.tiff', units="in", width=6, height=8, res=1000, , compression = 'lzw')
 plot
 dev.off()
 
+#Hyperphagia analysis
+library(tidyverse)
+library(ggplot2)
 
-# below code adds the samples into the box plot 
-geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 0.5)
+#t-test
+t.test(hyperphagy$girth_start_mm, hyperphagy$girth_48hrs_mm, paired = T)
 
-#add mean to box plot 
-stat_summary(fun = mean, geom = "point", col = "red")
+#analysis of all data including body size proxies
 
-#### create a plot with cold tolerance as central plot with non-sig hyperphagia and starvation plots to the right####
+#plot normality
+hist(hyperphagy$difference_mm)
 
-setwd("C:/Users/td296/OneDrive - University of Exeter/Royal society/Why are males shit at migrating/Hyperphagia")
+#only omit NA's when looking at body size otherwise it removes a load of dry weight data 
+hyperphagy<-na.omit(hyperphagy)
 
-hyperphagy <- read.csv("hyperphagia_r.csv", header = T, stringsAsFactors = T)
+#model using drop1 function to remove non significant interactions
+glm1<-glm(difference_mm~sex*date_caught*basal_r4.5_cm, data = hyperphagy)
+summary(glm1)
+drop1(glm1, test="F")
 
-setwd("C:/Users/td296/OneDrive - University of Exeter/Royal society/Why are males shit at migrating/starvation")
+glm2<-glm(difference_mm~sex*date_caught+ date_caught*basal_r4.5_cm+sex*basal_r4.5_cm, data = hyperphagy)
+summary(glm2)
+drop1(glm2, test="F")
 
-starvation <- read.csv("starvation_r.csv", header = T, stringsAsFactors = T)
+glm3<-glm(difference_mm~sex*date_caught+ date_caught*basal_r4.5_cm, data = hyperphagy)
+summary(glm3)
+drop1(glm3, test="F")
 
+glm4<-glm(difference_mm~sex*date_caught+basal_r4.5_cm, data = hyperphagy)
+summary(glm4)
+drop1(glm4, test="F")
 
-####hyperphagia plot ####
+glm5<-glm(difference_mm~sex*date_caught, data = hyperphagy)
+summary(glm5)
+drop1(glm5, test="F")
+
+glm6<-glm(difference_mm~sex+date_caught, data = hyperphagy)
+summary(glm6)
+drop1(glm6, test="F")
+
+glm7<-glm(difference_mm~date_caught, data = hyperphagy)
+summary(glm7)
+drop1(glm7, test="F")
+
+anova(glm6, glm7)
+
+plot(glm7)
+#body size doesn't interact with girth difference
+
+#analysis without body size or wing length as body size proxy
+
+#body size between males and females is the same. See body size stats
+#remove body size column
+
+newdf<-select(hyperphagy, ID, sex, girth_start_mm, girth_48hrs_mm, difference_mm, date_caught )
+
+# include all data in analysis and remove body size proxies. this give more girth difference data
+
+#use girth_start_mm as a proxy for condition
+glm7<-glm(difference_mm~sex*date_caught, data = hyperphagy)
+summary(glm7)
+drop1(glm7, test="F")
+
+glm8<-glm(difference_mm~sex+date_caught, data = hyperphagy)
+summary(glm8)
+drop1(glm8, test="F")
+
+glm9<-glm(difference_mm~date_caught, data = hyperphagy)
+summary(glm9)
+drop1(glm9, test="F")
+
+glm10<-glm(difference_mm~sex+date_caught+girth_start_mm, data = hyperphagy)
+summary(glm10)
+drop1(glm10, test="F")
+
+glm11<-glm(difference_mm~sex+girth_start_mm, data = hyperphagy)
+summary(glm11)
+drop1(glm11, test="F")
+#girth start is a predictor of girth difference. not surprising. sex is non-significant
+
+#plot hyperphagia
+#change names 
 #hyperphagy$sex<-recode_factor(hyperphagy$sex, "f" = "Female")
 #hyperphagy$sex<-recode_factor(hyperphagy$sex, "m" = "Male")
 
-#plot the model
+#plot 
 hyp<-ggplot(hyperphagy, aes(x=sex, y = difference_mm, col=sex))+
   geom_boxplot(outlier.shape = NA)+
   geom_jitter(width=0.3, size = 2.5, alpha=0.5, pch = 19)+
@@ -146,7 +197,45 @@ hyp<-ggplot(hyperphagy, aes(x=sex, y = difference_mm, col=sex))+
   scale_x_discrete(labels=c('Female', 'Male'))+
   theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))
 hyp
+
+#starvation anlysis
+
+starvation$star_hr<-as.numeric(starvation$star_hr)
+
+# change date_collected, sex and condition from character into factor
+starvation$date_collected<-as.factor(starvation$date_collected)
+starvation$sex<-as.factor(starvation$sex)
+starvation$condition<-as.factor(starvation$condition)
+
+
+#models
+glm1<-glm(hr_2_starvation~sex, data = starvation)
+summary(glm1)
+
+glm2<-glm(hr_2_starvation~1, data=starvation)
+
+anova(glm1, glm2, test = "F")
+
+plot(glm1)
+
+# no significant difference
+
+#plot
+ggplot(starvation, aes(x=sex, y = hr_2_starvation))+
+  geom_boxplot()
+
+
+
+
+
+
+
+
+
+
+
 ####starvation plot####
+
 #starvation$sex<-recode_factor(starvation$sex, "f" = "Female")
 #starvation$sex<-recode_factor(starvation$sex, "m" = "Male")
 
