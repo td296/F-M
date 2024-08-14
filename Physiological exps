@@ -1,3 +1,5 @@
+#Cold tolerance exp
+
 library(tidyverse)
 library(ggplot2)
 library("ggsignif") 
@@ -9,6 +11,7 @@ library(ggpubr)
 hist(master$temp)
 
 #glm with drop1 function to remove non-significant itneractions
+#body size proxy basal_r4.5_cm included 
 
 glm1<-glm(temp~sex*condition*date_frozen*basal_r4.5_cm, data = master)
 summary(glm1)
@@ -75,7 +78,7 @@ glm15<-glm(temp~1, data = master)
 
 anova(glm14, glm15, test = "F")
 
-
+#plot cold tolerance
 # recode F and M to state male and female
 
 #$sex<-recode_factor(master$sex, "F" = "Female")
@@ -114,7 +117,9 @@ hist(hyperphagy$difference_mm)
 #only omit NA's when looking at body size otherwise it removes a load of dry weight data 
 hyperphagy<-na.omit(hyperphagy)
 
-#model using drop1 function to remove non significant interactions
+#glm with drop1 function to remove non-significant itneractions
+#body size proxy basal_r4.5_cm included
+
 glm1<-glm(difference_mm~sex*date_caught*basal_r4.5_cm, data = hyperphagy)
 summary(glm1)
 drop1(glm1, test="F")
@@ -143,12 +148,10 @@ glm7<-glm(difference_mm~date_caught, data = hyperphagy)
 summary(glm7)
 drop1(glm7, test="F")
 
-anova(glm6, glm7)
-
 plot(glm7)
 #body size doesn't interact with girth difference
 
-#analysis without body size or wing length as body size proxy
+#analysis without body size proxy
 
 #body size between males and females is the same. See body size stats
 #remove body size column
@@ -179,7 +182,7 @@ summary(glm11)
 drop1(glm11, test="F")
 #girth start is a predictor of girth difference. not surprising. sex is non-significant
 
-#plot hyperphagia
+#plot hyperphagia data
 #change names 
 #hyperphagy$sex<-recode_factor(hyperphagy$sex, "f" = "Female")
 #hyperphagy$sex<-recode_factor(hyperphagy$sex, "m" = "Male")
@@ -206,6 +209,8 @@ starvation$star_hr<-as.numeric(starvation$star_hr)
 starvation$date_collected<-as.factor(starvation$date_collected)
 starvation$sex<-as.factor(starvation$sex)
 starvation$condition<-as.factor(starvation$condition)
+
+#date collected and condition were the same for all individuals 
 
 #models
 glm1<-glm(hr_2_starvation~sex, data = starvation)
