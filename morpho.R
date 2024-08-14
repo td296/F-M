@@ -134,7 +134,6 @@ summary(glm8)
 
 anova(glm7,glm8, test = "F")
 
-
 # wing length between males and female migrants
 #all other explanatory variables were non significant so removed
 
@@ -184,7 +183,6 @@ summary(glm2)
 anova(glm1, glm2, test = "F")
 
 
-
 #wing loading
 
 glm1<-glm(wing_load_mm.mg~sex, data = morphonew[morphonew$form=="migrant",])
@@ -207,7 +205,7 @@ ggplot(morphonew2, aes(x=form, y=wing_load_mm.mg)) +
 summerdf<-morphonew%>%
   filter(form%in% c('Summer lab', 'summer'))
 
-# both summer lab and summer wild have data for wing width, length and aspect ratio
+# both summer lab and summer wild have data for wing width and length
 
 glm1<-glm(wing_length_cm~form, data=summerdf)
 summary(glm1)
@@ -224,6 +222,8 @@ summary(glm2)
 morphonew2<-morphonew
 
 morphonew2$form<-recode_factor(morphonew$form, `Summer lab` = "summer")
+
+#modelling with both migrants and summer non-migrants
 
 #wing length
 
@@ -291,60 +291,6 @@ summary(glm8)
 glm9<-glm(dry_weight_mg~form*sex, data = morphonew3)
 summary(glm9)
 anova(glm8, glm9, test= "F")
-
-
-#good r squared value 0.89
-
-lm6<-lm(dry_weight_mg~wing_area_mm2, data = morphonew[morphonew$sex=="female",])
-summary(lm6)
-#bad r squared value 0.51
-
-#try with wing length for females - omit NA's 
-lm7<-lm(dry_weight_mg~wing_length_cm, data = morphonew[morphonew$sex=="female",],na.action=na.omit)
-summary(lm7)
-#bad r squared value 0.534
-
-#wing length for males - omit NA's
-lm8<-lm(dry_weight_mg~wing_length_cm, data = morphonew[morphonew$sex=="male",],na.action=na.omit)
-summary(lm8)
-#good r squared value 0.8993
-
-#both sexes wing length - omit NA's
-lm9<-lm(dry_weight_mg~wing_length_cm, data = morphonew,na.action=na.omit)
-summary(lm9)
-# not bad. Adjusted R-squared:  0.6177 
-
-# plot both sexes
-#omit NA's fro m data set 
-
-# does dry body width and IT correlate to use IT as body size proxy
-
-lm10<-lm(dry_weight_mg~IT_cm, data = morphonew,na.action=na.omit)
-summary(lm10)
-
-#plot
-
-#plot
-ggplot(morphonew, aes(x=dry_weight_mg, y = IT_cm))+
-  geom_point(aes(colour=sex))+ geom_smooth(method=lm, se=FALSE)
-
-
-
-
-
-
-#We don't need wing length as a proxy for body size as dry weight does this
-
-glm7<-glm(dry_weight_mg~sex*date, data=morphonew)
-summary(glm7)
-drop1(glm7, test="F")
-#sex and date significant!
-
-hist(morphonew$dry_weight_mg)
-
-
-
-
 
 ####extra plots summer vs migrant####
 
