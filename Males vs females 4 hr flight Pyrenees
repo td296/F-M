@@ -1,0 +1,775 @@
+#### Mill 4 hour flight analysis ####
+#### Migrants ####
+
+# Packages:
+library("lme4")
+library(bbmle)
+library(AICcmodavg)
+library("dplyr")
+library("glmmTMB")
+library(DHARMa)
+library(ggplot2)
+library(cowplot)
+library(tidyr)
+library(emmeans)
+library(ggpubr)
+
+# Poisson overdispersion function:
+od.point <- function(modelobject){
+  x <- sum(resid(modelobject,type="pearson")^2)
+  rdf <- summary(modelobject)$AICtab[5]
+  return(x/rdf)
+}
+
+# setting up the dataset:
+setwd("C:/Users/op288/OneDrive - University of Exeter/PhD/Pyrenees")
+
+Pyrdata <- read.csv("Pyrenees 4hr mill data 1.5.24.csv", stringsAsFactors = FALSE)
+# check dataframe for loading errors.
+
+Pyrdata <- Pyrdata[!is.na(Pyrdata$Fly),]
+Pyrdata <- Pyrdata[!is.na(Pyrdata$Acceleration),] # one record causing problems for gamma glmms.
+
+# Make factors factors:
+Pyrdata$Sex <- as.factor(Pyrdata$Sex)
+Pyrdata$Mill_number <- as.factor(Pyrdata$Mill_number)
+Pyrdata$Origin <- as.factor(Pyrdata$Origin)
+Pyrdata$Mill <- as.factor(Pyrdata$Mill)
+Pyrdata$Fly <- as.factor(Pyrdata$Fly)
+Pyrdata$Rich_body_condition <- as.factor(Pyrdata$Rich_body_condition)
+
+# Analysis: ####
+
+# Here I want to test the flight parameters between sex and body condition, 
+# controlling for mills as random effects.
+# Insects all had good wing integrity so all were kept for analysis.
+
+
+# Distance ####
+
+Dist1 <- glmmTMB(Distance ~ Sex * Rich_body_condition + 1 + 
+                    (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = Dist1, n = 1000)
+plot (Model.sim) # not terrible
+testResiduals(Model.sim) # good
+
+drop1(Dist1, test = "Chisq") 
+# final model with all predictors and interactions significant
+
+# comparisons between all groups:
+marginal = emmeans(Dist1, ~ Sex*Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# within body condition comparisons:
+marginal = emmeans(Dist1, ~ Sex|Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+
+# getting means for paper:
+
+# Using the summary table:
+summary(Dist1)
+m = (6.0929+1.7529+0.6464-2.8239) # males
+f = (6.0929+1.7529) # females
+exp(f) # females - exp function gives true value before log transformation.
+exp(m) # males
+
+# using emmeans to get standard errors:
+spec <- c("Sex", "Rich_body_condition")
+emmeans(Dist1, spec, by = NULL, fac.reduce = function(coefs) apply(coefs,
+                                                                  2, mean), options = get_emm_option("emmeans"))
+f = 7.85
+m = 5.67
+ff = 6.09
+
+msu = (5.67+0.329) # m upper
+msl = (5.67-0.329) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (7.85+0.43) # f upper
+fsl = (7.85-0.43) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+ffsu = (6.09+0.5) # f upper
+ffsl = (6.09-0.5) # f lower
+ffsue <- exp(ffsu)
+ffsle <- exp(ffsl)
+ffse = ffsue - ffsle
+ffse # standard error
+
+# check that this matches the pwc estimate:
+f-m
+
+exp(f) # females dur
+exp(m) # males dur
+exp(ff)
+
+
+# Using emmeans throughout for consistent reporting of group comparisons in the paper:
+
+# Figure for Distance: Medium - medium visual
+PyrMed <- Pyrdata %>% subset(Rich_body_condition == "Medium")
+
+dist <- ggplot(PyrMed,aes(Sex, Distance, colour = Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) + 
+  geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9"))+
+  labs(x = bquote(NULL), y = "Distance "~m)  +
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE,
+              annotations = c("***"), textsize = 6, col = 1, size = 0.5)
+
+morphboxes <- dist  + scale_y_continuous(limits = c(3.8, 10), breaks = seq(2, 10, by = 2)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+distance <- morphboxes + guides(fill="none") + theme(legend.position = "none")
+
+Dist <- distance + scale_y_continuous(trans = "log10") +  scale_x_discrete(labels=c('Female (m)', 'Male (m)'))
+
+Dist
+
+# make the scale on the log
+
+p <- morphboxes #+
+  #scale_y_continuous(trans = 'log10')
+
+p + scale_y_continuous(trans = log10_trans(),
+                       labels = trans_format("log10"))
+
+dist + scale_y_log10()
+
+scale_y_continuous(trans = 'log2')
+
+
+# Acceleration ####
+
+Acc1 <- glmmTMB(A_insect ~ Sex * Rich_body_condition +
+                    (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = Acc1, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+
+drop1(Acc1, test = "Chisq") # Final model
+summary(Acc1)
+
+# Comparisons: all
+marginal = emmeans(Acc1, ~ Rich_body_condition * Sex)
+
+pwc <- pairs(marginal)
+pwc
+
+# Body condition comparisons:
+marginal = emmeans(Acc1, ~ Sex|Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# means for paper:
+spec <- c("Sex", "Rich_body_condition")
+emmeans(Acc1, spec, by = NULL, fac.reduce = function(coefs) apply(coefs,
+                                                                  2, mean), options = get_emm_option("emmeans"))
+m = (-2.19) # males
+f = (-1.52) # females
+
+# medium:
+msu = (-2.19+0.194) # m upper
+msl = (-2.19-0.194) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (-1.52+0.221) # f upper
+fsl = (-1.52-0.221) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+# check that this matches the pwc estimate:
+f-m
+
+ffsu = (-2.68+0.288) # f upper
+ffsl = (-2.68-0.288) # f lower
+ffsue <- exp(ffsu)
+ffsle <- exp(ffsl)
+ffse = ffsue - ffsle
+ffse # standard error
+exp(-2.68)
+
+# check that this matches the pwc estimate:
+f-m
+
+exp(f) # females
+exp(m) # males
+
+
+# sig difference between sexes for acceleration dependent on body cond
+# Figure for acceleration:
+
+Accplot <- ggplot(PyrMed,aes(Sex, A_insect, colour = Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())+
+   geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9"))+
+  labs(x = bquote(NULL), y = "Acceleration "~m/s^2) +
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE, textsize = 0, col = 1, size = 0.5)
+
+morphboxes <- Accplot + scale_y_continuous(limits = c(0.045, 1), breaks = seq(0, 2, by = 0.25)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+acceleration <- morphboxes + guides(fill="none") + theme(legend.position = "none") +   scale_x_discrete(labels=c('Female (m)', 'Male (m)'))
+acceleration
+
+
+# Max speed ####
+
+Spd1 <- glmmTMB(Max_speed ~ Sex * Rich_body_condition +
+                    (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = Spd1, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+
+drop1(Spd1, test = "Chisq") # Final model
+
+summary(Spd1)
+
+# BC comparisons:
+marginal = emmeans(Spd1, ~ Sex|Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# All comparisons:
+marginal = emmeans(Spd1, ~ Sex*Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# Fat males flew faster than fat females but n=3 for fat males... disregarding due to low sample
+
+# means for paper:
+spec <- c("Sex", "Rich_body_condition")
+emmeans(Spd1, spec, by = NULL, fac.reduce = function(coefs) apply(coefs,
+                                                                 2, mean), options = get_emm_option("emmeans"))
+m = (-0.0582) # males
+f = (0.2358) # females
+
+# medium:
+msu = (-0.0582+0.123) # m upper
+msl = (-0.0582-0.123) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (0.2358+0.132) # f upper
+fsl = (0.2358-0.132) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+# fat:
+msu = (0.5352+0.229) # m upper
+msl = (0.5352-0.229) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (-0.2601+0.174) # f upper
+fsl = (-0.2601-0.174) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+exp(-0.2601) # females
+exp(0.5352) # males
+
+# check that this matches the pwc estimate:
+f-m
+
+exp(f) # females dur
+exp(m) # males dur
+
+PyrFat <- Pyrdata %>% subset(Rich_body_condition == "Fat")# not using due to low n.
+
+# medium medium:
+spdplot <- ggplot(PyrMed,aes(Sex, Max_speed, colour = Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9"))
+
+morphboxes <- spdplot +  xlab(NULL) +
+  ylab("Maximum speed m/s") +scale_y_continuous(limits = c(0.45, 3), breaks = seq(0, 3, by = 0.5)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+maxspeedM <- morphboxes + guides(fill="none") + theme(legend.position = "none") + scale_x_discrete(labels=c('Female (m)', 'Male (m)'))
+maxspeedM
+
+
+# Flight time ####
+
+FT1 <- glmmTMB(Flight_time ~ Sex * Rich_body_condition +
+                    (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics
+Model.sim <- simulateResiduals (fittedModel = FT1, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+
+drop1(FT1, test = "Chisq") # final model
+
+# All comparisons:
+marginal = emmeans(FT1, ~ Sex*Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# between bC comparisons:
+marginal = emmeans(FT1, ~ Sex|Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# means for paper:
+spec <- c("Sex", "Rich_body_condition")
+emmeans(FT1, spec, by = NULL, fac.reduce = function(coefs) apply(coefs,
+                                                                  2, mean), options = get_emm_option("emmeans"))
+
+m = (6.35) # males
+f = (8.05) # females
+
+msu = (6.35+0.259) # m upper
+msl = (6.35-0.259) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (8.05+0.330) # f upper
+fsl = (8.05-0.330) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+# check that this matches the pwc estimate:
+f-m
+
+exp(f) # females dur
+exp(m) # males dur
+
+# Figure for Flight time:
+
+ftime <- ggplot(PyrMed,aes(Sex, Flight_time, colour = Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9"))+
+  labs(x = bquote(NULL), y = "Flight time"~sec) +
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE,
+              annotations = c("***"), textsize = 6, col = 1, size = 0.5)
+
+morphboxes <- ftime + scale_y_continuous(limits = c(3.5, 10), breaks = seq(4, 10, by = 1)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+flighttime <- morphboxes + guides(fill="none") + theme(legend.position = "none") + scale_y_continuous(trans = "log10") +   scale_x_discrete(labels=c('Female (m)', 'Male (m)'))
+
+flighttime
+
+
+# longest flight ####
+LF1 <- glmmTMB(Longest_flight ~ Sex * Rich_body_condition +
+                    (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = LF1, n = 1000)
+plot (Model.sim) # Good qq, not ideal res vs pred
+testResiduals(Model.sim) # ok
+
+drop1(LF1, test = "Chisq") # final model
+
+# all comparisons:
+marginal = emmeans(LF1, ~ Sex*Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# Between BC:
+marginal = emmeans(LF1, ~ Sex|Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# means for paper:
+spec <- c("Sex", "Rich_body_condition")
+emmeans(LF1, spec, by = NULL, fac.reduce = function(coefs) apply(coefs,
+                                                                  2, mean), options = get_emm_option("emmeans"))
+
+m = (3.63) # males
+f = (6.84) # females
+ff = (4.05) # fat fems
+
+msu = (3.63+0.525) # m upper
+msl = (3.63-0.525) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (6.84+0.623) # f upper
+fsl = (6.84-0.623) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+ffsu = (4.05+0.663) # f upper
+ffsl = (4.05-0.663) # f lower
+ffsue <- exp(ffsu)
+ffsle <- exp(ffsl)
+ffse = ffsue - ffsle
+ffse # standard error
+
+# check that this matches the pwc estimate:
+f-m
+
+exp(f) # females dur
+exp(m) # males dur
+exp(ff)
+
+# Figure for longest flight:
+
+longflight <- ggplot(PyrMed,aes(Sex, Longest_flight, colour = Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9"))+
+  labs(x = bquote(NULL), y = "Longest flight " ~m)+
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE,
+              annotations = c("***"), textsize = 6, col = 1, size = 0.5)
+
+morphboxes <- longflight + scale_y_continuous(limits = c(2, 10), breaks = seq(0, 10, by = 2)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+LongestF <- morphboxes + guides(fill="none") + theme(legend.position = "none")+ scale_y_continuous(trans = "log10") +   scale_x_discrete(labels=c('Female (m)', 'Male (m)'))
+
+LongestF  
+
+
+# Number of flights ####
+
+NF1 <- glmmTMB(N_flights ~ Sex * Rich_body_condition +
+                    (1|Mill/Mill_number), data = Pyrdata, family = poisson(link = "log"))
+
+# Diganostics:
+od.point(NF1) # overdispersed
+Model.sim <- simulateResiduals (fittedModel = NF1, n = 1000)
+plot (Model.sim) # ok
+testResiduals(Model.sim) # ok
+
+# negative binomial error to deal with overdispersion:
+NF2 <- glmmTMB(N_flights ~ Sex * Rich_body_condition +
+                 (1|Mill/Mill_number), data = Pyrdata, family = nbinom2())
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = NF2, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+
+drop1(NF2, test = "Chisq")
+# Poor convergence, remove interaction to reduce complexity.
+
+NF3 <- glmmTMB(N_flights ~ Sex + Rich_body_condition +
+                 (1|Mill/Mill_number), data = Pyrdata, family = nbinom2())
+
+# Diganostics:
+Model.sim <- simulateResiduals (fittedModel = NF3, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+
+drop1(NF3, test = "Chisq")
+# Poor convergence, remove BC:
+
+NF4 <- glmmTMB(N_flights ~ Sex +
+                 (1|Mill/Mill_number), data = Pyrdata, family = nbinom2())
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = NF4, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+summary(NF4)
+
+drop1(NF4, test = "Chisq") # sex not significant.
+
+
+# Now without sex:
+NF5 <- glmmTMB(N_flights ~ Rich_body_condition +
+                 (1|Mill/Mill_number), data = Pyrdata, family = nbinom2())
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = NF5, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+summary(NF5)
+
+drop1(NF5, test = "Chisq") # not sig either.
+
+# test for better model:
+anova(NF4, NF5) # NF4 is sig better
+
+# Checking comparisons:
+emm <- emmeans(NF2, ~ Sex * Rich_body_condition)
+posthoc <- pairs(emm, adjust = "tukey")
+print(posthoc)
+
+# means for paper:
+f = (4.2660) # females
+m = f - 0.3540 # males
+
+# check that this matches the pwc estimate:
+f-m
+
+msu = (m+0.2339) # m upper
+msl = (m-0.2339) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (f+0.1705) # f upper
+fsl = (f-0.1705) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+exp(f) # females dur
+exp(m) # males dur
+
+# Figure for number of flights:
+
+NFlights <- ggplot(Pyrdata,aes(Sex, N_flights, colour = Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9"))+
+  labs(x = bquote(NULL), y = "Number of flights") +
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE,
+              annotations = c("NS."), textsize = 0, col = 1, size = 0.5)
+
+morphboxes <- NFlights + scale_y_continuous(limits = c(0, 320), breaks = seq(0, 301, by = 50)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+NFlights <- morphboxes + guides(fill="none") + theme(legend.position = "none") +   scale_x_discrete(labels=c('Female', 'Male'))
+NFlights
+
+
+# Mean speed ####
+Meanspd1 <- glmmTMB(Mean_speed ~ Sex * Rich_body_condition +
+                    (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = Meanspd1, n = 1000)
+plot (Model.sim) # some deviation
+testResiduals(Model.sim) # good
+
+drop1(Meanspd1, test = "Chisq") # remove interaction
+
+Meanspd2 <- glmmTMB(Mean_speed ~ Sex + Rich_body_condition +
+                      (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = Meanspd2, n = 1000)
+plot (Model.sim) # good
+testResiduals(Model.sim) # good
+
+drop1(Meanspd2, test = "Chisq") # since neither are significant and were interested in sex differences
+# here we will drop body condition for the final model.
+
+Meanspd3 <- glmmTMB(Mean_speed ~ Sex  +
+                      (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = Meanspd3, n = 1000)
+plot (Model.sim) # ok
+testResiduals(Model.sim) # good
+
+# Sex comparisons non-sig:
+marginal = emmeans(Meanspd2, ~ Sex)
+
+pwc <- pairs(marginal)
+pwc
+
+# means for paper:
+f = (-0.68679) # females
+m = f - 0.03998 # males
+
+# check that this matches the pwc estimate:
+f-m
+
+msu = (m+0.12485) # m upper
+msl = (m-0.12485) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (f+0.13356) # f upper
+fsl = (f-0.13356) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+exp(f) # females dur
+exp(m) # males dur
+
+# Figure for mean speed:
+
+Mean_speedbox <- ggplot(Pyrdata,aes(Sex, Mean_speed,colour=Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9")) +
+  labs(x = bquote(NULL), y = "Mean speed m/s") +
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE, textsize = 0, col = 1, size = 0.5)
+
+morphboxes <- Mean_speedbox + scale_y_continuous(limits = c(0.2, 1.7), breaks = seq(0, 1.7, by = 0.4)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+Mnspeed <- morphboxes + guides(fill="none") + theme(legend.position = "none") +   scale_x_discrete(labels=c('Female', 'Male'))
+Mnspeed
+
+
+# mean flight duration ####
+
+# creating the variable:
+Pyrdata['mean_flight_length'] <- Pyrdata$Flight_time / Pyrdata$N_flights
+PyrMed <- Pyrdata %>% subset(Rich_body_condition == "Medium")
+
+# model:
+Dur1 <- glmmTMB(mean_flight_length ~ Sex * Rich_body_condition +
+                    (1|Mill/Mill_number), data = Pyrdata, family = Gamma(link = "log"))
+
+# Diagnostics:
+Model.sim <- simulateResiduals (fittedModel = Dur1, n = 1000)
+plot (Model.sim) # deviation
+testResiduals(Model.sim) # ok
+
+drop1(Dur1, test = "Chisq") # final model
+
+# All comparisons:
+marginal = emmeans(Dur1, ~ Sex*Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# BC comparisons:
+marginal = emmeans(Dur1, ~ Sex|Rich_body_condition)
+
+pwc <- pairs(marginal)
+pwc
+
+# means for paper:
+spec <- c("Sex", "Rich_body_condition")
+emmeans(Dur1, spec, by = NULL, fac.reduce = function(coefs) apply(coefs,
+   2, mean), options = get_emm_option("emmeans"))
+
+m = (2.83) # males
+f = (4.08) # females
+ff = (2.80) # fat females
+
+
+# check that this matches the pwc estimate:
+f-m
+
+msu = (2.83+0.250) # m upper
+msl = (2.83-0.250) # m lower
+msue <- exp(msu)
+msle <- exp(msl)
+mse = msue - msle
+mse # standard error
+
+fsu = (4.08+0.308) # f upper
+fsl = (4.08-0.308) # f lower
+fsue <- exp(fsu)
+fsle <- exp(fsl)
+fse = fsue - fsle
+fse # standard error
+
+ffsu = (2.80+0.375) # f upper
+ffsl = (2.80-0.375) # f lower
+ffsue <- exp(ffsu)
+ffsle <- exp(ffsl)
+ffse = ffsue - ffsle
+ffse # standard error
+
+exp(f) # females dur
+exp(ff) # f females dur
+exp(m) # males dur
+
+# Figure for mean flight duration:
+
+Mean_fdur <- ggplot(PyrMed,aes(Sex, mean_flight_length, colour = Sex))+geom_boxplot(colour = c("#f57600", "#054fb9"), outliers = FALSE) + 
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  geom_jitter(width = 0.3, size = 2.5, alpha = 0.5)+
+  scale_colour_manual(values = c("#f57600", "#054fb9")) +
+  labs(x = bquote(NULL), y = "Mean flight duration " ~sec) +
+  geom_signif(comparisons = list(c("F", "M")), map_signif_level = TRUE,
+              annotations = c("***"), textsize = 6, col = 1, size = 0.5)
+
+morphboxes <- Mean_fdur + scale_y_continuous(limits = c(2, 7), breaks = seq(0, 7, by = 1)) + theme(axis.text=element_text(size=10), axis.title=element_text(size=13))
+
+Mean_fdur <- morphboxes + guides(fill="none") + theme(legend.position = "none") +  scale_y_continuous(trans = "log10") +
+  scale_x_discrete(labels=c('Female (m)', 'Male (m)'))
+Mean_fdur
+
+
+# combining all plots ####
+
+tiff('flight plotsv9.tiff', units="in", width=10, height=5, res=1000, compression = 'lzw')
+
+combinedplot <- plot_grid(Dist, Mean_fdur, LongestF, flighttime, maxspeedM, acceleration, NFlights, Mnspeed, ncol = 4, nrow = 2)
+combinedplot
+
+dev.off()
+
+
