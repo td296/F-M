@@ -114,9 +114,6 @@ t.test(hyperphagy$girth_start_mm, hyperphagy$girth_48hrs_mm, paired = T)
 #plot normality
 hist(hyperphagy$difference_mm)
 
-#only omit NA's when looking at body size otherwise it removes a load of dry weight data 
-hyperphagy<-na.omit(hyperphagy)
-
 #glm with drop1 function to remove non-significant itneractions
 #body size proxy basal_r4.5_cm included
 
@@ -153,12 +150,12 @@ plot(glm7)
 
 #analysis without body size proxy
 
-#body size between males and females is the same. See body size stats
+#body condition between males and females is the same. See body size stats
 #remove body size column
 
 newdf<-select(hyperphagy, ID, sex, girth_start_mm, girth_48hrs_mm, difference_mm, date_caught )
 
-# include all data in analysis and remove body size proxies. this give more girth difference data
+# include all data in analysis and remove body size proxies.
 
 #use girth_start_mm as a proxy for condition
 glm7<-glm(difference_mm~sex*date_caught, data = hyperphagy)
