@@ -11,7 +11,6 @@ library(ggpubr)
 hist(master$temp)
 
 #glm with drop1 function to remove non-significant itneractions
-#body size proxy basal_r4.5_cm included 
 
 glm1<-glm(temp~sex*condition*date_frozen*basal_r4.5_cm, data = master)
 summary(glm1)
