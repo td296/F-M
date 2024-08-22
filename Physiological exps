@@ -1,89 +1,34 @@
-#Cold tolerance exp
-
 library(tidyverse)
 library(ggplot2)
 library("ggsignif") 
 library("gridExtra")
 library(ggpubr)
 
+####Cold tolerance analysis####
+#remove outlier
+master<-master[!(master$ID=="1m"),]
 
-#plot normality
-hist(master$temp)
+#use sex and body condition as explanatory variables
+#linear model with drop1 function to remove non-significant interactions
 
-#glm with drop1 function to remove non-significant itneractions
-
-glm1<-glm(temp~sex*condition*date_frozen*basal_r4.5_cm, data = master)
+glm1<-glm(temp~sex*condition, data = master)
 summary(glm1)
 drop1(glm1, test="F")
+#drop sex:condition interaction
 
-glm2<-glm(temp~sex*condition*date_frozen+basal_r4.5_cm*sex*date_frozen + sex*condition*basal_r4.5_cm + date_frozen*basal_r4.5_cm*condition, data = master)
+glm2<-glm(temp~sex+condition, data = master)
 summary(glm2)
 drop1(glm2, test = "F")
+#drop condition
 
-glm3<-glm(temp~sex*condition*date_frozen+basal_r4.5_cm*sex*date_frozen + sex*condition*basal_r4.5_cm, data = master)
+glm3<-glm(temp~sex, data = master)
 summary(glm3)
 drop1(glm3, test = "F")
 
-glm4<-glm(temp~sex*condition*date_frozen+basal_r4.5_cm*sex*date_frozen, data = master)
-summary(glm4)
-drop1(glm4, test = "F")
-
-glm5<-glm(temp~basal_r4.5_cm*sex*date_frozen +condition*sex + condition*date_frozen, data = master)
-summary(glm5)
-drop1(glm5, test = "F")
-
-glm6<-glm(temp~basal_r4.5_cm*sex*date_frozen +condition*sex, data = master)
-summary(glm6)
-drop1(glm6, test = "F")
-
-glm7<-glm(temp~basal_r4.5_cm*sex + basal_r4.5_cm*date_frozen +sex*date_frozen +condition*sex, data = master)
-summary(glm7)
-drop1(glm7, test = "F")
-
-glm8<-glm(temp~basal_r4.5_cm*sex + basal_r4.5_cm*date_frozen +condition*sex, data = master)
-summary(glm8)
-drop1(glm8, test = "F")
-
-glm9<-glm(temp~basal_r4.5_cm*sex + date_frozen +condition*sex, data = master)
-summary(glm9)
-drop1(glm9, test = "F")
-
-glm10<-glm(temp~basal_r4.5_cm*sex +condition*sex, data = master)
-summary(glm10)
-drop1(glm10, test = "F")
-
-glm11<-glm(temp~basal_r4.5_cm +condition*sex, data = master)
-summary(glm11)
-drop1(glm11, test = "F")
-
-glm12<-glm(temp~condition*sex, data = master)
-summary(glm12)
-drop1(glm12, test = "F")
-
-glm13<-glm(temp~condition+sex, data = master)
-summary(glm13)
-drop1(glm13, test = "F")
-
-#final model
-glm14<-glm(temp~sex, data = master)
-summary(glm14)
-drop1(glm14, test = "F")
-
 #plot model diagnostics to assess assumptions of model
-plot(glm14)
-
-#null model
-glm15<-glm(temp~1, data = master)
-
-anova(glm14, glm15, test = "F")
+plot(glm3)
 
 #plot cold tolerance
-# recode F and M to state male and female
-
-#$sex<-recode_factor(master$sex, "F" = "Female")
-#master$sex<-recode_factor(master$sex, "M" = "Male")
-
-#plot the model
 cold<-ggplot(master, aes(x=sex, y = temp, col = sex))+
   geom_boxplot()+
   geom_jitter(width=0.3, size = 2.5, alpha=0.5, pch = 19)+
@@ -101,89 +46,25 @@ tiff('cold tolerance.tiff', units="in", width=6, height=8, res=1000, , compressi
 plot
 dev.off()
 
-#Hyperphagia analysis
-library(tidyverse)
-library(ggplot2)
-
+####Hyperphagia analysis####
 #t-test
 t.test(hyperphagy$girth_start_mm, hyperphagy$girth_48hrs_mm, paired = T)
-
-#analysis of all data including body size proxies
 
 #plot normality
 hist(hyperphagy$difference_mm)
 
-#glm with drop1 function to remove non-significant itneractions
-#body size proxy basal_r4.5_cm included
+#linear model with drop1 function to remove non-significant interactions
+# sex as explanatory variable. All experimental samples were the same condition 
 
-glm1<-glm(difference_mm~sex*date_caught*basal_r4.5_cm, data = hyperphagy)
-summary(glm1)
-drop1(glm1, test="F")
+lm4<-lm(difference_mm~sex, data = hyperphagy)
+summary(lm4)
+drop1(lm4, test="F")
 
-glm2<-glm(difference_mm~sex*date_caught+ date_caught*basal_r4.5_cm+sex*basal_r4.5_cm, data = hyperphagy)
-summary(glm2)
-drop1(glm2, test="F")
+#plot model diagnostics to assess assumptions of model
+plot(lm4)
 
-glm3<-glm(difference_mm~sex*date_caught+ date_caught*basal_r4.5_cm, data = hyperphagy)
-summary(glm3)
-drop1(glm3, test="F")
+#plot hyperhagia 
 
-glm4<-glm(difference_mm~sex*date_caught+basal_r4.5_cm, data = hyperphagy)
-summary(glm4)
-drop1(glm4, test="F")
-
-glm5<-glm(difference_mm~sex*date_caught, data = hyperphagy)
-summary(glm5)
-drop1(glm5, test="F")
-
-glm6<-glm(difference_mm~sex+date_caught, data = hyperphagy)
-summary(glm6)
-drop1(glm6, test="F")
-
-glm7<-glm(difference_mm~date_caught, data = hyperphagy)
-summary(glm7)
-drop1(glm7, test="F")
-
-plot(glm7)
-#body size doesn't interact with girth difference
-
-#analysis without body size proxy
-
-#body condition between males and females is the same. See body size stats
-#remove body size column
-
-newdf<-select(hyperphagy, ID, sex, girth_start_mm, girth_48hrs_mm, difference_mm, date_caught )
-
-# include all data in analysis and remove body size proxies.
-
-#use girth_start_mm as a proxy for condition
-glm7<-glm(difference_mm~sex*date_caught, data = hyperphagy)
-summary(glm7)
-drop1(glm7, test="F")
-
-glm8<-glm(difference_mm~sex+date_caught, data = hyperphagy)
-summary(glm8)
-drop1(glm8, test="F")
-
-glm9<-glm(difference_mm~date_caught, data = hyperphagy)
-summary(glm9)
-drop1(glm9, test="F")
-
-glm10<-glm(difference_mm~sex+date_caught+girth_start_mm, data = hyperphagy)
-summary(glm10)
-drop1(glm10, test="F")
-
-glm11<-glm(difference_mm~sex+girth_start_mm, data = hyperphagy)
-summary(glm11)
-drop1(glm11, test="F")
-#girth start is a predictor of girth difference. not surprising. sex is non-significant
-
-#plot hyperphagia data
-#change names 
-#hyperphagy$sex<-recode_factor(hyperphagy$sex, "f" = "Female")
-#hyperphagy$sex<-recode_factor(hyperphagy$sex, "m" = "Male")
-
-#plot 
 hyp<-ggplot(hyperphagy, aes(x=sex, y = difference_mm, col=sex))+
   geom_boxplot(outlier.shape = NA)+
   geom_jitter(width=0.3, size = 2.5, alpha=0.5, pch = 19)+
@@ -197,35 +78,30 @@ hyp<-ggplot(hyperphagy, aes(x=sex, y = difference_mm, col=sex))+
   theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))
 hyp
 
-#starvation anlysis
+####Starvation analysis####
+#check distribution
+hist(starvation$hr_2_starvation)
 
-starvation$star_hr<-as.numeric(starvation$star_hr)
+#change star_hr to numeric
 
-# change date_collected, sex and condition from character into factor
-starvation$date_collected<-as.factor(starvation$date_collected)
+starvation$hr_2_starvation<-as.numeric(starvation$hr_2_starvation)
+
+# change sex from character into factor
+
 starvation$sex<-as.factor(starvation$sex)
-starvation$condition<-as.factor(starvation$condition)
 
-#date collected and condition were the same for all individuals 
+#linear model with sex as explanatory variable using drop1 function
+#body condition not included as all experimental samples had the same body condition
 
-#models
-glm1<-glm(hr_2_starvation~sex, data = starvation)
-summary(glm1)
+lm5<-lm(hr_2_starvation~sex, data = starvation)
+summary(lm5)
+drop1(lm5, test="F")
 
-glm2<-glm(hr_2_starvation~1, data=starvation)
+#plot model diagnostics to assess assumptions of model
+plot(lm5)
 
-anova(glm1, glm2, test = "F")
+#plot figure 
 
-plot(glm1)
-
-# no significant difference
-
-#starvation plot
-
-#starvation$sex<-recode_factor(starvation$sex, "f" = "Female")
-#starvation$sex<-recode_factor(starvation$sex, "m" = "Male")
-
-#plot the model
 starv<-ggplot(starvation, aes(x=sex, y = hr_2_starvation, col=sex))+
   geom_boxplot(colour = c("#f57600", "#054fb9"),outlier.shape =NA)+
   geom_jitter(width=0.3, size = 2.5, alpha=0.5, pch = 19)+
@@ -239,8 +115,7 @@ starv<-ggplot(starvation, aes(x=sex, y = hr_2_starvation, col=sex))+
   theme(text=element_text(size=12), axis.text = element_text(size = 17), axis.title=element_text(size=20))
 starv
 
-#panelling pots for publication
-
+####paneling pots for publication####
 # merge hyperphagia and starvation. on top of each other. 7 spaces for labelling
 plot1<-ggarrange(hyp, starv, labels=c("d", "e"), nrow=2,font.label = list(size = 20, face = "plain"), common.legend = TRUE, legend="none",vjust=1)
 plot1
@@ -259,8 +134,3 @@ plot2<-ggarrange(cold,plot1, labels=c("a"), nrow=1,font.label = list(size = 20),
 plot2
 
 ggsave("physiological exps.tiff",path = NULL, width = 7, height = 8, device='tiff', dpi=1000)
-
-
-
-
-
